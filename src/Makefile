@@ -37,9 +37,9 @@ COQFILESSEMANTICS := Semantics/MemoryAddress Semantics/DynamicValues Semantics/L
 		Semantics/Denotation Semantics/InterpretationStack Semantics/TopLevel\
 		Semantics
 
-COQFILESANALYSIS := Analysis/Iteration Analysis/Kildall Analysis/Dom Analysis/DomKildall Analysis/ssa Analysis/DomId 
+COQFILESANALYSIS := Analysis/Iteration Analysis/Kildall Analysis/Dom Analysis/DomKildall Analysis/ssa Analysis/DomId
 
-COQFILESQC := Syntax/TypeUtil QC/Utils QC/GenAST QC/ShowAST QC/ReprAST QC/QCVellvm 
+COQFILESQC := Syntax/TypeUtil QC/Utils QC/GenAST QC/ShowAST QC/ReprAST QC/QCVellvm
 
 COQFILESTHEORY := Syntax/ScopeTheory\
 		Theory/StatePredicates\
@@ -53,13 +53,22 @@ COQFILESTHEORY := Syntax/ScopeTheory\
 COQFILESOPT    := Transformations/Transform\
 		Transformations/EquivExpr Transformations/BlockFusion Transformations/DeadCodeElimination
 
-COQFILESVIR      := $(COQFILESNUMERIC) $(COQFILESUTILS) $(COQFILESSYNTAX) $(COQFILESSEMANTICS) 
-COQFILESCOMPILER := $(COQFILESVIR) $(COQFILESANALYSIS) 
+COQFILESVIR      := $(COQFILESNUMERIC) $(COQFILESUTILS) $(COQFILESSYNTAX) $(COQFILESSEMANTICS)
+COQFILESCOMPILER := $(COQFILESVIR) $(COQFILESANALYSIS)
 COQFILESALL      := $(COQFILESCOMPILER) $(COQFILESTHEORY) $(COQFILESOPT)
 
 VFILES  := $(COQFILESALL:%=coq/%.v)
 VOFILES := $(COQFILESALL:%=coq/%.vo)
 QCVOFILES := $(COQFILESQC:%=coq/%.vo)
+GLOBFILES := $(COQFILES:%=coq/%.glob)
+
+EXTRA_DIR:=../lib/coqdocjs
+COQDOCFLAGS:= \
+  --external 'http://ssr2.msr-inria.inria.fr/doc/ssreflect-1.5/' Ssreflect \
+  --external 'http://ssr2.msr-inria.inria.fr/doc/mathcomp-1.5/' MathComp \
+  --toc --toc-depth 2 --html --interpolate \
+  --index indexpage --no-lib-name --parse-comments \
+  --with-header $(EXTRA_DIR)/header.html --with-footer $(EXTRA_DIR)/footer.html
 
 .PHONY: all
 all: .depend
@@ -114,9 +123,8 @@ $(EXTRACTDIR)/STAMP: $(VOFILES) $(EXTRACTDIR)/Extract.v
 	touch $(EXTRACTDIR)/STAMP
 
 %.vo: %.v
-	@rm -f doc/$(*F).glob
 	@echo "COQC $*.v"
-	@$(COQC) -dump-glob doc/$(*F).glob $*.v
+	@$(COQC) $*.v
 
 .depend: $(VFILES)
 	@echo "Analyzing Coq dependencies"
@@ -126,7 +134,7 @@ EXE=_build/default/ml/main.exe
 
 $(EXE): extracted ml/dune ml/extracted/dune ml/testing/dune
 	@echo "Compiling Vellvm"
-	dune build ml/main.exe 
+	dune build ml/main.exe
 
 vellvm: $(EXE)
 	cp $(EXE) vellvm
@@ -146,6 +154,7 @@ clean:
 	find $(COQDIR) -name "*.vio" -delete
 	find $(COQDIR) -name "*.vok" -delete
 	find $(COQDIR) -name "*.vos" -delete
+	find $(COQDIR) -name "*.glob" -delete
 	rm -f $(VOFILES)
 	rm -rf doc/html doc/*.glob
 	rm -f $(EXTRACTDIR)/STAMP $(EXTRACTDIR)/*.ml $(EXTRACTDIR)/*.mli
@@ -159,17 +168,11 @@ distclean: clean
 	make -C $(QUICKCHICKDIR) clean
 	make -C $(FLOCQQUICKCHICKDIR) clean
 
-doc/coq2html: 
-	make -C ../lib/coq2html
-	cp ../lib/coq2html doc/coq2html
-	chmod +x doc/coq2html
-
-.PHONY: documentation
-documentation: doc/coq2html $(VFILES)
+.PHONY: coqdoc
+coqdoc: $(VFILES) $(GLOBFILES)
 	mkdir -p doc/html
-	rm -f doc/html/*.html
-	doc/coq2html -d doc/html doc/*.glob \
-          $(filter-out doc/coq2html cparser/Parser.v, $^)
-	cp ../lib/coq2html/coq2html.css ../lib/coq2html/coq2html.js doc/html/
+	rm -rf doc/html/*
+	coqdoc $(COQDOCFLAGS) -R coq Vellvm -d doc/html $(VFILES)
+	cp $(EXTRA_DIR)/resources/* doc/html
 
 include .depend
