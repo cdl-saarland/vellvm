@@ -37,7 +37,7 @@ Import MonadNotation.
 (** * Pick handler
   Definition of the propositional and executable handlers for the [Pick] event.
   - The propositional one capture in [Prop] all possible values
-  - The executable one interprets [undef] as 0 at the type  
+  - The executable one interprets [undef] as 0 at the type
 *)
 
 Module Make(A:MemoryAddress.ADDRESS)(LLVMIO: LLVM_INTERACTIONS(A)).
@@ -45,11 +45,11 @@ Module Make(A:MemoryAddress.ADDRESS)(LLVMIO: LLVM_INTERACTIONS(A)).
   Import LLVMIO.
 
   Section PickPropositional.
-   
+
     (* The parameter [C] is currently not used *)
     Inductive Pick_handler {E} `{FE:FailureE -< E} `{FO:UBE -< E}: PickE ~> PropT E :=
     | PickD: forall uv C res t,  concretize_u uv res -> t ≈ (lift_undef_or_err ret res) -> Pick_handler (pick uv C) t.
-                                                                      
+
     Section PARAMS_MODEL.
       Variable (E F: Type -> Type).
 
@@ -192,7 +192,7 @@ Module Make(A:MemoryAddress.ADDRESS)(LLVMIO: LLVM_INTERACTIONS(A)).
                                                   dv2 <- concretize_uvalue v2 ;;
                                                   eval_fcmp cmp dv1 dv2
       | _ => (lift (failwith "Attempting to convert a partially non-reduced uvalue to dvalue. Should not happen"))
-      
+
       end.
 
     Ltac do_it := constructor; cbn; auto; fail.
@@ -382,7 +382,8 @@ Module Make(A:MemoryAddress.ADDRESS)(LLVMIO: LLVM_INTERACTIONS(A)).
       - cbn; apply (Pick_fail (v := DVALUE_None)); intro H'; inv H'.
       - cbn; apply (Pick_fail (v := DVALUE_None)); intro H'; inv H'.
       - cbn; apply (Pick_fail (v := DVALUE_None)); intro H'; inv H'.
-    Qed.
+      - admit.
+    Admitted.
 
     Definition concretize_picks {E} `{FailureE -< E} `{UBE -< E} : PickE ~> itree E :=
       fun T p => match p with

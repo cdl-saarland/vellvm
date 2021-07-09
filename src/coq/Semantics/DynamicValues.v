@@ -154,7 +154,7 @@ Function unsupported_cases_match_ {X} (sz : N) (x64 x32 x8 x1 x : X) :=
     | _ => x
     end.
 
-Lemma unsupported_cases_match : forall {X} (sz : N) (N : ~ IX_supported sz) (x64 x32 x8 x1 x : X), 
+Lemma unsupported_cases_match : forall {X} (sz : N) (N : ~ IX_supported sz) (x64 x32 x8 x1 x : X),
     match sz with
     | 64 => x64
     | 32 => x32
@@ -242,6 +242,7 @@ Section DvalueInd.
   Qed.
 End DvalueInd.
 
+Hypothesis (sym_spec : Type -> Set).
 
 (* The set of dynamic values manipulated by an LLVM program. *)
 Unset Elimination Schemes.
@@ -272,6 +273,7 @@ Inductive uvalue : Set :=
 | UVALUE_ExtractValue     (vec:uvalue) (idxs:list int)
 | UVALUE_InsertValue      (vec:uvalue) (elt:uvalue) (idxs:list int)
 | UVALUE_Select           (cnd:uvalue) (v1:uvalue) (v2:uvalue)
+| UVALUE_Symbolic_I32 (x:sym_spec int32)
 .
 Set Elimination Schemes.
 
@@ -303,6 +305,7 @@ Section UvalueInd.
   Hypothesis IH_ExtractValue   : forall (vec:uvalue) (idxs:list int), P vec -> P (UVALUE_ExtractValue vec idxs).
   Hypothesis IH_InsertValue    : forall (vec:uvalue) (elt:uvalue) (idxs:list int), P vec -> P elt -> P (UVALUE_InsertValue vec elt idxs).
   Hypothesis IH_Select         : forall (cnd:uvalue) (v1:uvalue) (v2:uvalue), P cnd -> P v1 -> P v2 -> P (UVALUE_Select cnd v1 v2).
+  Hypothesis IH_Symbolic_I32 : forall (x : sym_spec int32), P (UVALUE_Symbolic_I32 x).
 
   Lemma uvalue_ind : forall (uv:uvalue), P uv.
     fix IH 1.
@@ -821,7 +824,8 @@ Section DecidableEquality.
     - destruct (f u u')...
       destruct (f v v')...
       destruct (f t t')...
-  Qed.
+    - admit.
+  Admitted.
 
   #[global] Instance eq_dec_uvalue : RelDec (@eq uvalue) := RelDec_from_dec (@eq uvalue) (@uvalue_eq_dec).
   #[global] Instance eqv_uvalue : Eqv uvalue := (@eq uvalue).
@@ -1882,7 +1886,7 @@ Class VInt I : Type :=
     Qed.
   End dvalue_has_dtyp_ind.
 
-  Inductive concretize_u : uvalue -> undef_or_err dvalue -> Prop := 
+  Inductive concretize_u : uvalue -> undef_or_err dvalue -> Prop :=
   (* Concrete uvalue are contretized into their singleton *)
   | Pick_concrete             : forall uv (dv : dvalue), uvalue_to_dvalue uv = inr dv -> concretize_u uv (ret dv)
   | Pick_fail                 : forall uv v s, ~ (uvalue_to_dvalue uv = inr v)  -> concretize_u uv (lift (failwith s))
@@ -1899,7 +1903,7 @@ Class VInt I : Type :=
                    (dv1 <- e1 ;;
                     dv2 <- e2 ;;
                     (eval_iop iop dv1 dv2))
-  
+
   | Concretize_ICmp : forall cmp uv1 e1 uv2 e2 ,
       concretize_u uv1 e1 ->
       concretize_u uv2 e2 ->
@@ -1954,7 +1958,7 @@ Class VInt I : Type :=
 
   | Concretize_Array_Cons : forall u e us es,
       concretize_u u e ->
-      concretize_u (UVALUE_Array us) es ->      
+      concretize_u (UVALUE_Array us) es ->
       concretize_u (UVALUE_Array (u :: us))
                    (d <- e ;;
                     vs <- es ;;
@@ -1968,7 +1972,7 @@ Class VInt I : Type :=
 
   | Concretize_Vector_Cons : forall u e us es,
       concretize_u u e ->
-      concretize_u (UVALUE_Vector us) es ->      
+      concretize_u (UVALUE_Vector us) es ->
       concretize_u (UVALUE_Vector (u :: us))
                    (d <- e ;;
                     vs <- es ;;
@@ -1979,5 +1983,5 @@ Class VInt I : Type :=
   .
 
   Definition concretize (uv: uvalue) (dv : dvalue) := concretize_u uv (ret dv).
-  
+
 End DVALUE.
